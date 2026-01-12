@@ -1,9 +1,9 @@
 // API Configuration
+// Using CORS Proxy to avoid local development CORS issues
 const API_URL = 'https://getlate.dev/api/v1';
 const API_KEY = 'sk_b00cf1517e5928515f6a40574be37b0d59cb6d2abef68fb57492b40a86758590';
 const FACEBOOK_ID = '69646c3f4207e06f4ca84d2e';
 
-// Hardcoded Sheet URL for Realtime Sync (CSV format)
 // Hardcoded Sheet URL for Realtime Sync (CSV format)
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1G4qUBZfpczeQrl1_n66N-LLvDg1Yvo_6NBIiG233Hog/gviz/tq?tqx=out:csv&gid=1605423378';
 
@@ -135,6 +135,21 @@ function renderPosts() {
     const tbody = document.getElementById('posts-table-body');
     if (!tbody) return;
 
+    if (posts.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 48px; color: #64748b;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                        <i data-lucide="inbox" style="width: 32px; height: 32px; color: #cbd5e1;"></i>
+                        <p>Không có bài đăng nào cần xử lý</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        lucide.createIcons();
+        return;
+    }
+
     tbody.innerHTML = posts.map(post => {
         let scheduleDisplay = `${post.date} ${post.time}`;
 
@@ -174,11 +189,16 @@ async function postToFacebook(postId) {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    const btn = event.currentTarget; // Get button element
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i data-lucide="loader-2" class="spinning"></i> Đang đăng...';
-    btn.disabled = true;
-    lucide.createIcons();
+    // Support both manual button and automatic call
+    const btn = event && event.currentTarget ? event.currentTarget : null;
+    let originalText = '';
+
+    if (btn) {
+        originalText = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spinning"></i> Đang đăng...';
+        btn.disabled = true;
+        lucide.createIcons();
+    }
 
     try {
         // Calculate Schedule Time
@@ -220,25 +240,74 @@ async function postToFacebook(postId) {
         const data = await response.json();
         console.log('Posted to Facebook!', data);
 
-        // Success Feedback
-        btn.innerHTML = '<i data-lucide="check"></i> Thành công';
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-success'); // You might need to add this class or use inline style
+        if (btn) {
+            // Success Feedback
+            btn.innerHTML = '<i data-lucide="check"></i> Thành công';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+        }
 
         // Update local status mock
         post.status = 'Posted';
         setTimeout(renderPosts, 2000); // Re-render after delay
+        return true;
 
     } catch (error) {
         console.error('Post failed:', error);
-        alert(`Đăng bài thất bại: ${error.message}`);
-
-        // Reset button
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        lucide.createIcons();
+        if (btn) {
+            alert(`Đăng bài thất bại: ${error.message}`);
+            // Reset button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            lucide.createIcons();
+        }
+        return false;
     }
 }
+
+async function autoPostAll() {
+    const pendingPosts = posts.filter(p => p.status !== 'Posted');
+
+    if (pendingPosts.length === 0) {
+        alert('Không có bài viết nào cần đăng!');
+        return;
+    }
+
+    if (!confirm(`Phát hiện ${pendingPosts.length} bài viết cần đăng. Bạn có muốn bắt đầu không?`)) {
+        return;
+    }
+
+    const btn = document.getElementById('autoPostBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+
+    let successCount = 0;
+
+    for (let i = 0; i < pendingPosts.length; i++) {
+        const post = pendingPosts[i];
+        btn.innerHTML = `<i data-lucide="loader-2" class="spinning"></i> Đang đăng ${i + 1}/${pendingPosts.length}...`;
+        lucide.createIcons();
+
+        const success = await postToFacebook(post.id);
+        if (success) successCount++;
+
+        // Wait 1s between posts to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    btn.innerHTML = `<i data-lucide="check-circle"></i> Xong (${successCount}/${pendingPosts.length})`;
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+        lucide.createIcons();
+    }, 5000);
+}
+
 
 
 // ==========================================
@@ -274,58 +343,82 @@ function toggleSheetMode() {
 }
 
 // ==========================================
-// Test API Logic
+// View Switching Logic
 // ==========================================
 
-async function testAPI() {
-    const btn = event.currentTarget;
-    const originalContent = btn.innerHTML;
+function switchView(viewName) {
+    // Hide all views
+    document.querySelectorAll('.dashboard-view').forEach(el => el.style.display = 'none');
+    document.getElementById('schedule-view').style.display = 'none';
+    document.getElementById('settings-view').style.display = 'none';
 
-    btn.innerHTML = '<i data-lucide="loader-2" class="spinning"></i> Testing...';
-    btn.disabled = true;
-    lucide.createIcons();
+    // Remove active class from nav
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
-    try {
-        console.log('🚀 Sending test post...');
-        const response = await fetch(`${API_URL}/posts`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: 'Hello from API Test! 🚀 ' + new Date().toLocaleTimeString(),
-                platforms: [
-                    { platform: 'facebook', accountId: FACEBOOK_ID }
-                ],
-                publishNow: true
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('✅ API Test Success:', data);
-        alert('Test API kết nối thành công! Đã đăng bài test lên Facebook.');
-
-        btn.innerHTML = '<i data-lucide="check"></i> OK';
-        setTimeout(() => {
-            btn.innerHTML = originalContent;
-            btn.disabled = false;
-            lucide.createIcons();
-        }, 2000);
-
-    } catch (error) {
-        console.error('❌ API Test Failed:', error);
-        alert(`Lỗi kết nối API: ${error.message}`);
-
-        btn.innerHTML = '<i data-lucide="alert-circle"></i> Failed';
-        setTimeout(() => {
-            btn.innerHTML = originalContent;
-            btn.disabled = false;
-            lucide.createIcons();
-        }, 2000);
+    // Show selected view
+    if (viewName === 'dashboard') {
+        document.querySelectorAll('.dashboard-view').forEach(el => el.style.display = 'block'); // Or flex/whatever
+        document.querySelector('.nav-item:nth-child(1)').classList.add('active'); // Dashboard
+        document.querySelector('.nav-item:nth-child(2)').classList.remove('active');
+    } else if (viewName === 'posts') {
+        // Same as dashboard for now, but maybe focus on list?
+        document.querySelectorAll('.dashboard-view').forEach(el => el.style.display = 'block');
+        document.querySelector('.nav-item:nth-child(2)').classList.add('active'); // Posts
+        document.querySelector('.nav-item:nth-child(1)').classList.remove('active');
+        // Scroll to list?
+        document.getElementById('dashboard-list').scrollIntoView({ behavior: 'smooth' });
+    } else if (viewName === 'schedule') {
+        document.getElementById('schedule-view').style.display = 'block';
+        document.querySelector('.nav-item:nth-child(3)').classList.add('active');
+        renderSchedule(); // Helper to render schedule specific list
+    } else if (viewName === 'settings') {
+        document.getElementById('settings-view').style.display = 'block';
+        document.querySelector('.nav-item:nth-child(4)').classList.add('active');
     }
+
+    lucide.createIcons();
 }
+
+function renderSchedule() {
+    // Simple filter for future posts
+    const container = document.getElementById('schedule-list');
+    const futurePosts = posts.filter(p => {
+        const utc = combineDateTimeToUTC(p.date, p.time);
+        return utc && new Date(utc) > new Date();
+    });
+
+    if (futurePosts.length === 0) {
+        container.innerHTML = `
+        <div style="text-align: center; color: #64748b; padding: 40px;">
+            <i data-lucide="calendar" style="width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+            <p>Không có bài đăng nào được lên lịch trong tương lai.</p>
+        </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    // Render list
+    container.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Nội dung</th>
+                    <th>Nền tảng</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${futurePosts.map(p => `
+                    <tr>
+                        <td>${p.date} ${p.time}</td>
+                        <td class="post-content-cell"><div class="post-text">${p.content}</div></td>
+                        <td>${p.platform}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    lucide.createIcons();
+}
+
+

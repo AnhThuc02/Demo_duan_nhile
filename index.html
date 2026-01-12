@@ -74,16 +74,12 @@
                     <p>Chào mừng trở lại, quản lý các bài đăng của bạn ngay tại đây.</p>
                 </div>
                 <div class="actions">
-                    <button class="btn btn-outline" onclick="testAPI()">
-                        <i data-lucide="zap"></i>
-                        Test API
-                    </button>
                     <!-- User Profile/Settings could go here -->
                 </div>
             </header>
 
             <!-- Google Sheet View -->
-            <div class="content-card">
+            <div id="dashboard-sheet" class="content-card dashboard-view">
                 <div class="card-header">
                     <h3>Quản lý bài đăng (Google Sheet)</h3>
                     <button class="btn btn-soft" onclick="toggleSheetMode()" id="modeBtn">
@@ -98,12 +94,18 @@
             </div>
 
             <!-- Posts List View -->
-            <div class="content-card" style="margin-top: 24px;">
+            <div id="dashboard-list" class="content-card dashboard-view" style="margin-top: 24px;">
                 <div class="card-header">
                     <h3>Danh sách bài viết</h3>
-                    <div class="search-bar">
-                        <i data-lucide="search"></i>
-                        <input type="text" placeholder="Tìm kiếm bài viết...">
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-primary btn-sm" onclick="autoPostAll()" id="autoPostBtn">
+                            <i data-lucide="play"></i>
+                            Chạy tự động
+                        </button>
+                        <div class="search-bar">
+                            <i data-lucide="search"></i>
+                            <input type="text" placeholder="Tìm kiếm bài viết...">
+                        </div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -118,9 +120,57 @@
                             </tr>
                         </thead>
                         <tbody id="posts-table-body">
-                            <!-- Posts will be rendered here -->
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 48px; color: #64748b;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                                        <i data-lucide="loader-2" class="spinning"
+                                            style="width: 32px; height: 32px; color: #6366f1;"></i>
+                                        <p>Đang đồng bộ dữ liệu...</p>
+                                    </div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <!-- Schedule View -->
+            <div id="schedule-view" class="content-card" style="display: none;">
+                <div class="card-header">
+                    <h3>Lịch đăng bài</h3>
+                </div>
+                <div class="card-body" style="padding: 24px;">
+                    <div id="schedule-list">
+                        <!-- Scheduled posts will be rendered here -->
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            <i data-lucide="calendar"
+                                style="width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                            <p>Các bài viết được lên lịch sẽ hiển thị tại đây.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div id="settings-view" class="content-card" style="display: none;">
+                <div class="card-header">
+                    <h3>Cài đặt kết nối</h3>
+                </div>
+                <div class="card-body" style="padding: 24px;">
+                    <div class="form-group">
+                        <label>API Key (GetLate)</label>
+                        <input type="password"
+                            value="sk_b00cf1517e5928515f6a40574be37b0d59cb6d2abef68fb57492b40a86758590" readonly>
+                        <p class="form-hint">API Key được cấu hình trong hệ thống.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Facebook Account ID</label>
+                        <input type="text" value="69646c3f4207e06f4ca84d2e" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Google Sheet GID</label>
+                        <input type="text" value="1605423378" readonly>
+                        <p class="form-hint">ID của Tab "Fb+Ins+LinkedIn"</p>
+                    </div>
                 </div>
             </div>
         </main>
