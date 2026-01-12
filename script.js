@@ -4,7 +4,8 @@ const API_KEY = 'sk_b00cf1517e5928515f6a40574be37b0d59cb6d2abef68fb57492b40a8675
 const FACEBOOK_ID = '69646c3f4207e06f4ca84d2e';
 
 // Hardcoded Sheet URL for Realtime Sync (CSV format)
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1G4qUBZfpczeQrl1_n66N-LLvDg1Yvo_6NBIiG233Hog/gviz/tq?tqx=out:csv';
+// Hardcoded Sheet URL for Realtime Sync (CSV format)
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1G4qUBZfpczeQrl1_n66N-LLvDg1Yvo_6NBIiG233Hog/gviz/tq?tqx=out:csv&gid=1605423378';
 
 let posts = [];
 
@@ -67,17 +68,62 @@ async function fetchAndSync() {
         const dataRows = rows.slice(1).filter(row => row.length >= 3 && row[0]);
 
         posts = dataRows.map((row, index) => ({
-            id: `row-${index}`, // Temporary ID
-            content: row[4] ? row[4].replace(/^"|"$/g, '') : '', // Column E is Content (index 4)
-            platform: row[2] ? row[2].replace(/^"|"$/g, '') : 'Unknown', // Column C is Platform
-            time: row[1] ? row[1].replace(/^"|"$/g, '') : '', // Column B is Time
-            status: row[6] ? (row[6].includes('TRUE') ? 'Posted' : 'Pending') : 'Pending' // Column G is Status
+            id: `row-${index}`,
+            date: row[0] ? row[0].replace(/^"|"$/g, '') : '',       // Col A: Day
+            time: row[1] ? row[1].replace(/^"|"$/g, '') : '',       // Col B: Time
+            platform: row[2] ? row[2].replace(/^"|"$/g, '') : 'Unknown', // Col C: Platform
+            content: row[4] ? row[4].replace(/^"|"$/g, '') : '',    // Col E: Content
+            status: row[6] ? (row[6].includes('TRUE') ? 'Posted' : 'Pending') : 'Pending' // Col G
         }));
 
         renderPosts();
 
     } catch (error) {
         console.error('Realtime sync error:', error);
+    }
+}
+
+// ==========================================
+// Helper: Date Time Conversion
+// ==========================================
+
+function combineDateTimeToUTC(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return null;
+
+    try {
+        let day, month, year;
+
+        if (dateStr.includes('/')) {
+            [day, month, year] = dateStr.split('/');
+        } else if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            if (parts[0].length === 4) {
+                [year, month, day] = parts;
+            } else {
+                [day, month, year] = parts;
+            }
+        } else {
+            return null;
+        }
+
+        // Try to handle 2-digit years if needed, but assuming 4 digits for now based on '2026'
+
+        day = day.padStart(2, '0');
+        month = month.padStart(2, '0');
+        // Ensure year is 4 digits
+        if (year.length === 2) year = '20' + year;
+
+        const [hours, minutes] = timeStr.split(':');
+
+        // Create Date object
+        const localDate = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`);
+
+        if (isNaN(localDate.getTime())) return null;
+
+        return localDate.toISOString();
+    } catch (e) {
+        console.error("Date parse error:", e);
+        return null;
     }
 }
 
@@ -89,10 +135,17 @@ function renderPosts() {
     const tbody = document.getElementById('posts-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = posts.map(post => `
+    tbody.innerHTML = posts.map(post => {
+        let scheduleDisplay = `${post.date} ${post.time}`;
+
+        return `
         <tr>
             <td class="post-content-cell">
                 <div class="post-text" title="${post.content}">${post.content}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                    <i data-lucide="clock" style="width: 10px; height: 10px; display: inline;"></i>
+                    ${scheduleDisplay}
+                </div>
             </td>
             <td>
                 <span class="platform-badge ${post.platform.toLowerCase().includes('facebook') ? 'facebook' : 'instagram'}">
@@ -100,10 +153,7 @@ function renderPosts() {
                     ${post.platform}
                 </span>
             </td>
-            <td>${post.time}</td>
-            <td>
-                <span class="status-badge ${post.status.toLowerCase()}">${post.status}</span>
-            </td>
+            <td>${post.status}</td>
             <td>
                 <button class="btn btn-primary btn-sm" onclick="postToFacebook('${post.id}')" ${post.status === 'Posted' ? 'disabled' : ''}>
                     <i data-lucide="send"></i>
@@ -111,7 +161,7 @@ function renderPosts() {
                 </button>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 
     lucide.createIcons();
 }
@@ -131,7 +181,27 @@ async function postToFacebook(postId) {
     lucide.createIcons();
 
     try {
-        console.log('Sending to API:', post);
+        // Calculate Schedule Time
+        const utcTime = combineDateTimeToUTC(post.date, post.time);
+
+        let payload = {
+            content: post.content,
+            platforms: [
+                { platform: 'facebook', accountId: FACEBOOK_ID }
+            ]
+        };
+
+        // If valid UTC time and it's in the future
+        if (utcTime && new Date(utcTime) > new Date()) {
+            console.log("Scheduling for:", utcTime);
+            payload.publishNow = false;
+            payload.date = utcTime; // API expects 'date' for schedule
+        } else {
+            console.log("Publishing immediately (Time is past or invalid)");
+            payload.publishNow = true;
+        }
+
+        console.log('Sending to API:', payload);
 
         const response = await fetch(`${API_URL}/posts`, {
             method: 'POST',
@@ -139,13 +209,7 @@ async function postToFacebook(postId) {
                 'Authorization': `Bearer ${API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                content: post.content,
-                platforms: [
-                    { platform: 'facebook', accountId: FACEBOOK_ID }
-                ],
-                publishNow: true
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
