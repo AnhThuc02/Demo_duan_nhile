@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MXH Auto - Quản lý bài đăng tự động</title>
+
+    <!-- Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons: Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <i data-lucide="send"></i>
+                <h2>MXH Auto</h2>
+            </div>
+
+            <nav class="nav-menu">
+                <ul>
+                    <li class="nav-item active">
+                        <a href="#">
+                            <i data-lucide="layout-dashboard"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#">
+                            <i data-lucide="pen-square"></i>
+                            <span>Quản lý bài viết</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#">
+                            <i data-lucide="calendar-days"></i>
+                            <span>Lịch đăng</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#">
+                            <i data-lucide="settings"></i>
+                            <span>Cài đặt</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-profile">
+                <div class="avatar">
+                    <img src="https://ui-avatars.com/api/?name=Admin&background=6366f1&color=fff" alt="Admin">
+                </div>
+                <div class="user-info">
+                    <h4>Admin User</h4>
+                    <p>Pro Plan</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="page-title">
+                    <h1>Tổng quan</h1>
+                    <p>Chào mừng trở lại, quản lý các bài đăng của bạn ngay tại đây.</p>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-outline" onclick="testAPI()">
+                        <i data-lucide="zap"></i>
+                        Test API
+                    </button>
+                    <!-- User Profile/Settings could go here -->
+                </div>
+            </header>
+
+            <!-- Google Sheet View -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Quản lý bài đăng (Google Sheet)</h3>
+                    <button class="btn btn-soft" onclick="toggleSheetMode()" id="modeBtn">
+                        <i data-lucide="edit-3"></i>
+                        Chỉnh sửa
+                    </button>
+                </div>
+                <div class="sheet-container">
+                    <iframe
+                        src="https://docs.google.com/spreadsheets/d/1G4qUBZfpczeQrl1_n66N-LLvDg1Yvo_6NBIiG233Hog/preview"></iframe>
+                </div>
+            </div>
+
+            <!-- Posts List View -->
+            <div class="content-card" style="margin-top: 24px;">
+                <div class="card-header">
+                    <h3>Danh sách bài viết</h3>
+                    <div class="search-bar">
+                        <i data-lucide="search"></i>
+                        <input type="text" placeholder="Tìm kiếm bài viết...">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Nội dung</th>
+                                <th>Nền tảng</th>
+                                <th>Thời gian</th>
+                                <th>Trạng thái</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="posts-table-body">
+                            <!-- Posts will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
