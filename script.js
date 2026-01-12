@@ -63,9 +63,14 @@ async function fetchAndSync() {
         const csvText = await response.text();
         const rows = parseCSV(csvText);
 
-        // Skip header row (first row) and ensure row has data
-        // Assuming Column C (index 2) is Platform
-        const dataRows = rows.slice(1).filter(row => row.length >= 3 && row[0]);
+        // Improved filtering: Look for rows that actually have a platform and content
+        // and skip the dashboard/header rows (usually rows starting with empty cols)
+        const dataRows = rows.filter(row => {
+            // Need at least index 4 (Content) and index 2 (Platform) or index 0 (Date)
+            const hasContent = row[4] && row[4].trim() !== "" && row[4] !== "Content";
+            const hasIndicator = (row[0] && row[0].length > 2) || (row[2] && row[2].length > 2);
+            return hasContent && hasIndicator;
+        });
 
         posts = dataRows.map((row, index) => ({
             id: `row-${index}`,
@@ -73,7 +78,7 @@ async function fetchAndSync() {
             time: row[1] ? row[1].replace(/^"|"$/g, '') : '',       // Col B: Time
             platform: row[2] ? row[2].replace(/^"|"$/g, '') : 'Unknown', // Col C: Platform
             content: row[4] ? row[4].replace(/^"|"$/g, '') : '',    // Col E: Content
-            status: row[6] ? (row[6].includes('TRUE') ? 'Posted' : 'Pending') : 'Pending' // Col G
+            status: row[6] ? (row[6].includes('TRUE') || row[6].includes('Posted') ? 'Posted' : 'Pending') : 'Pending' // Col G
         }));
 
         renderPosts();
@@ -82,6 +87,7 @@ async function fetchAndSync() {
         console.error('Realtime sync error:', error);
     }
 }
+
 
 // ==========================================
 // Helper: Date Time Conversion

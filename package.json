@@ -1,0 +1,14 @@
+{
+  "name": "mxh-auto-post",
+  "version": "1.0.0",
+  "description": "Hệ thống tự động đăng bài từ Google Sheet",
+  "main": "test_api.js",
+  "scripts": {
+    "start": "node test_api.js",
+    "debug": "node debug_sheet.js",
+    "serve": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
