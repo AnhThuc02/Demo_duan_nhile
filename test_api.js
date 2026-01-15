@@ -86,22 +86,43 @@ function combineDateTimeToUTC(dateStr, timeStr) {
  * 📊 HÀM PHÂN TÍCH CSV
  */
 function parseCSV(text) {
-    const lines = text.split('\n');
-    return lines.map(line => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') inQuotes = !inQuotes;
-            else if (char === ',' && !inQuotes) {
-                result.push(current.trim());
-                current = '';
-            } else current += char;
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+                currentCell += '"';
+                i++; // Skip the escaped quote
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            currentRow.push(currentCell);
+            currentCell = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (char === '\r' && nextChar === '\n') i++; // Handle \r\n
+            currentRow.push(currentCell);
+            rows.push(currentRow);
+            currentRow = [];
+            currentCell = '';
+        } else {
+            currentCell += char;
         }
-        result.push(current.trim());
-        return result;
-    });
+    }
+
+    // Add the last row if exists
+    if (currentRow.length > 0 || currentCell) {
+        currentRow.push(currentCell);
+        rows.push(currentRow);
+    }
+
+    return rows;
 }
 
 /**
