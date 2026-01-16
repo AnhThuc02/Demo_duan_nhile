@@ -80,23 +80,79 @@ async function fetchAndSync() {
         const csvText = await response.text();
         const rows = parseCSV(csvText);
 
-        // Improved filtering: Look for rows that actually have a platform and content
-        // and skip the dashboard/header rows (usually rows starting with empty cols)
-        const dataRows = rows.filter(row => {
-            // Need at least index 4 (Content) and index 2 (Platform) or index 0 (Date)
-            const hasContent = row[4] && row[4].trim() !== "" && row[4] !== "Content";
-            const hasIndicator = (row[0] && row[0].length > 2) || (row[2] && row[2].length > 2);
-            return hasContent && hasIndicator;
+        // Find Header Row
+        let headerIndex = -1;
+        let contentColIndex = -1;
+        let platformColIndex = -1;
+        let dateColIndex = -1;
+        let timeColIndex = -1;
+        let statusColIndex = -1;
+
+        // Search for header row with key columns
+        for (let i = 0; i < Math.min(rows.length, 50); i++) {
+            const row = rows[i].map(c => c ? c.toUpperCase().trim() : '');
+
+            // Heuristics for columns
+            const cIdx = row.findIndex(c => c === 'CONTENT' || c === 'NỘI DUNG' || c.includes('CONTENT'));
+            const pIdx = row.findIndex(c => c === 'PLATFORM' || c === 'NỀN TẢNG');
+            const dIdx = row.findIndex(c => c === 'DAY' || c === 'DATE' || c === 'NGÀY');
+            const tIdx = row.findIndex(c => c === 'TIME' || c === 'GIỜ' || c === 'THỜI GIAN');
+            const sIdx = row.findIndex(c => c === 'POSTING STATUS' || c === 'TRẠNG THÁI' || c === 'STATUS');
+
+            // If we found at least Content and (Platform or Date), we assume this is the header
+            if (cIdx !== -1 && (pIdx !== -1 || dIdx !== -1)) {
+                headerIndex = i;
+                contentColIndex = cIdx;
+                platformColIndex = pIdx;
+                dateColIndex = dIdx;
+                timeColIndex = tIdx;
+                statusColIndex = sIdx;
+                break;
+            }
+        }
+
+        // Fallback or explicit mapping if detection failed but we want to try defaults
+        if (headerIndex === -1) {
+            console.warn("Could not auto-detect header. Using defaults.");
+            headerIndex = 0; // Assumption
+            // contentColIndex = 4; // Default? Let's be careful.
+        }
+
+        const dataRows = rows.slice(headerIndex + 1).filter(row => {
+            if (contentColIndex === -1) return false;
+            // Valid row must have content
+            const content = row[contentColIndex];
+            // And maybe a date or platform?
+            return content && content.trim() !== "";
         });
 
-        posts = dataRows.map((row, index) => ({
-            id: `row-${index}`,
-            date: row[0] ? row[0].replace(/^"|"$/g, '') : '',       // Col A: Day
-            time: row[1] ? row[1].replace(/^"|"$/g, '') : '',       // Col B: Time
-            platform: row[2] ? row[2].replace(/^"|"$/g, '') : 'Unknown', // Col C: Platform
-            content: row[4] ? row[4].replace(/^"|"$/g, '') : '',    // Col E: Content
-            status: row[6] ? (row[6].includes('TRUE') || row[6].includes('Posted') ? 'Posted' : 'Pending') : 'Pending' // Col G
-        }));
+        posts = dataRows.map((row, index) => {
+            const dateStr = dateColIndex !== -1 ? (row[dateColIndex] || '') : '';
+            const timeStr = timeColIndex !== -1 ? (row[timeColIndex] || '') : '';
+            const platformStr = platformColIndex !== -1 ? (row[platformColIndex] || '') : 'Facebook';
+            const contentStr = (row[contentColIndex] || '');
+
+            // Status Parsing: Checkbox TRUE/FALSE or text
+            let status = 'Pending';
+            if (statusColIndex !== -1) {
+                const rawStatus = (row[statusColIndex] || '').toUpperCase();
+                if (rawStatus.includes('TRUE') || rawStatus.includes('POSTED') || rawStatus.includes('ĐÃ ĐĂNG')) {
+                    status = 'Posted';
+                }
+            }
+
+            // Clean up quotes from CSV parsing if manual parsing is used
+            const clean = (str) => str ? str.replace(/^"|"$/g, '') : '';
+
+            return {
+                id: `row-${index + headerIndex + 1}`,
+                date: clean(dateStr),
+                time: clean(timeStr),
+                platform: clean(platformStr) || 'Facebook',
+                content: clean(contentStr),
+                status: status
+            };
+        });
 
         renderPosts();
 
