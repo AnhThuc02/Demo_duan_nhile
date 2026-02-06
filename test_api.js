@@ -29,7 +29,7 @@ const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1G4qUBZfpczeQrl1_n
 const processedPosts = new Set();
 
 /**
- * 🛰 HÀM GỬI YÊU CẦU HTTP
+ * 🛰 HÀM GỬI YÊU CẦU HTTP Request
  */
 function fetchUrl(url, options = {}) {
     return new Promise((resolve, reject) => {
