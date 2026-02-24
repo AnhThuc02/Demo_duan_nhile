@@ -499,7 +499,3 @@ function renderSchedule() {
     `;
     lucide.createIcons();
 }
-
-
-
-
